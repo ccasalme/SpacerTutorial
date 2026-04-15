@@ -1,22 +1,96 @@
-// This file holds the main code for plugins. Code in this file has access to
-// the *figma document* via the figma global object.
-// You can access browser APIs in the <script> tag inside "ui.html" which has a
-// full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
+const ui = `
+<!DOCTYPE html>
+<html>
+  <body>
+    <div style="font-family: sans-serif; padding: 16px;">
+      <h3>Spacer Settings</h3>
+      <label>
+        Width
+        <input id="width" type="number" value="100" min="1" />
+      </label>
+      <br /><br />
+      <label>
+        Height
+        <input id="height" type="number" value="24" min="1" />
+      </label>
+      <br /><br />
+      <label>
+        Ratio (W / H)
+        <input id="ratio" type="number" value="1" min="0.1" step="0.1" />
+      </label>
+      <br /><br />
+      <label>
+        <input id="lockRatio" type="checkbox" checked />
+        Lock ratio
+      </label>
+      <br /><br />
+      <button id="apply">Create / Resize Spacer</button>
 
-// This plugin creates rectangles on the screen.
-const numberOfRectangles = 5;
+      <script>
+        const widthInput = document.getElementById("width");
+        const heightInput = document.getElementById("height");
+        const ratioInput = document.getElementById("ratio");
+        const lockRatioInput = document.getElementById("lockRatio");
+        const applyBtn = document.getElementById("apply");
 
-const nodes: SceneNode[] = [];
-for (let i = 0; i < numberOfRectangles; i++) {
-  const rect = figma.createRectangle();
-  rect.x = i * 150;
-  rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }];
-  figma.currentPage.appendChild(rect);
-  nodes.push(rect);
+        applyBtn.onclick = () => {
+          parent.postMessage(
+            {
+              pluginMessage: {
+                type: "create-or-resize-spacer",
+                width: Number(widthInput.value),
+                height: Number(heightInput.value),
+                ratio: Number(ratioInput.value),
+                lockRatio: lockRatioInput.checked
+              }
+            },
+            "*"
+          );
+        };
+      </script>
+    </div>
+  </body>
+</html>
+`;
+
+figma.showUI(ui, { width: 320, height: 240 });
+
+type SpacerMessage = {
+  type: "create-or-resize-spacer";
+  width: number;
+  height: number;
+  ratio: number;
+  lockRatio: boolean;
+};
+
+function isResizableNode(node: SceneNode): node is SceneNode & { resize(width: number, height: number): void } {
+  return "resize" in node;
 }
-figma.currentPage.selection = nodes;
-figma.viewport.scrollAndZoomIntoView(nodes);
 
-// Make sure to close the plugin when you're done. Otherwise the plugin will
-// keep running, which shows the cancel button at the bottom of the screen.
-figma.closePlugin();
+figma.ui.onmessage = (msg: SpacerMessage) => {
+  if (msg.type !== "create-or-resize-spacer") return;
+
+  const newWidth = msg.width;
+  const newHeight = msg.lockRatio && msg.ratio > 0
+    ? msg.width / msg.ratio
+    : msg.height;
+
+  const selection = figma.currentPage.selection;
+
+  if (selection.length === 1 && isResizableNode(selection[0])) {
+    selection[0].resize(newWidth, newHeight);
+    figma.notify(`Spacer resized to ${Math.round(newWidth)} × ${Math.round(newHeight)}`);
+    return;
+  }
+
+  const rect = figma.createRectangle();
+  rect.resize(newWidth, newHeight);
+  rect.name = "Spacer";
+  rect.fills = [];
+
+  figma.currentPage.appendChild(rect);
+  figma.currentPage.selection = [rect];
+  figma.viewport.scrollAndZoomIntoView([rect]);
+
+  figma.notify(`Spacer created at ${Math.round(newWidth)} × ${Math.round(newHeight)}`);
+};
