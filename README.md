@@ -183,5 +183,6 @@ VS Code will automatically recompile TypeScript on save.
 ---
 
 ## 📌 License
+MIT License
 
 
