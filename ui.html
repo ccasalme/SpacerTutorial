@@ -14,7 +14,7 @@
       }
 
       body {
-        padding: 25px;
+        padding: 16px;
         box-sizing: border-box;
       }
 
@@ -22,7 +22,7 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
-        padding: 20px;
+        padding: 18px;
         border-radius: 16px;
         background: rgba(255, 250, 242, 0.72);
         border: 1px solid rgba(80, 67, 52, 0.12);
@@ -40,6 +40,12 @@
       .fields {
         display: flex;
         flex-direction: column;
+        gap: 12px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
         gap: 12px;
       }
 
@@ -89,7 +95,7 @@
       }
 
       button {
-        height: 38px;
+        height: 40px;
         border: none;
         border-radius: 10px;
         background: #6f5a45;
@@ -97,11 +103,15 @@
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s ease;
       }
 
       button:hover {
         background: #5f4b39;
+      }
+
+      .hint {
+        font-size: 11px;
+        color: #6a5d4f;
       }
     </style>
   </head>
@@ -110,20 +120,39 @@
       <h3>Spacer Settings</h3>
 
       <div class="fields">
-        <label class="field">
-          <span>Width</span>
-          <input id="width" type="number" value="100" min="1" />
-        </label>
+        <div class="row">
+          <label class="field">
+            <span>Width</span>
+            <input id="width" type="number" value="100" min="1" />
+          </label>
 
-        <label class="field">
-          <span>Height</span>
-          <input id="height" type="number" value="24" min="1" />
-        </label>
+          <label class="field">
+            <span>Height</span>
+            <input id="height" type="number" value="24" min="1" />
+          </label>
+        </div>
 
         <label class="field">
           <span>Ratio (W / H)</span>
           <input id="ratio" type="number" value="1" min="0.1" step="0.1" />
         </label>
+
+        <label class="field">
+          <span>Fill hex</span>
+          <input id="fillHex" type="text" value="#EBD9C4" placeholder="#EBD9C4" />
+        </label>
+
+        <div class="row">
+          <label class="field">
+            <span>Border hex</span>
+            <input id="borderHex" type="text" value="#6F5A45" placeholder="#6F5A45" />
+          </label>
+
+          <label class="field">
+            <span>Border width</span>
+            <input id="borderWidth" type="number" value="0" min="0" step="1" />
+          </label>
+        </div>
       </div>
 
       <label class="checkbox">
@@ -131,30 +160,67 @@
         <span>Lock ratio</span>
       </label>
 
+      <label class="checkbox">
+        <input id="transparent" type="checkbox" checked />
+        <span>Transparent spacer</span>
+      </label>
+
+      <label class="checkbox">
+        <input id="lockSpacer" type="checkbox" checked />
+        <span>Lock spacer after create</span>
+      </label>
+
+      <div class="hint">
+        Locked spacers are harder to accidentally drag, but Figma can still layer other objects above them.
+      </div>
+
       <button id="apply">Create / Resize Spacer</button>
     </div>
 
-    <script>
-      const widthInput = document.getElementById("width");
-      const heightInput = document.getElementById("height");
-      const ratioInput = document.getElementById("ratio");
-      const lockRatioInput = document.getElementById("lockRatio");
-      const applyBtn = document.getElementById("apply");
+	<script>
+  const widthInput = document.getElementById("width");
+  const heightInput = document.getElementById("height");
+  const ratioInput = document.getElementById("ratio");
+  const lockRatioInput = document.getElementById("lockRatio");
+  const transparentInput = document.getElementById("transparent");
+  const fillHexInput = document.getElementById("fillHex");
+  const borderHexInput = document.getElementById("borderHex");
+  const borderWidthInput = document.getElementById("borderWidth");
+  const lockSpacerInput = document.getElementById("lockSpacer");
+  const applyBtn = document.getElementById("apply");
 
-      applyBtn.onclick = () => {
-        parent.postMessage(
-          {
-            pluginMessage: {
-              type: "create-or-resize-spacer",
-              width: Number(widthInput.value),
-              height: Number(heightInput.value),
-              ratio: Number(ratioInput.value),
-              lockRatio: lockRatioInput.checked
-            }
-          },
-          "*"
-        );
-      };
-    </script>
+  onmessage = (event) => {
+    const msg = event.data.pluginMessage;
+    if (!msg || msg.type !== "load-spacer") return;
+
+    widthInput.value = msg.width;
+    heightInput.value = msg.height;
+    fillHexInput.value = msg.fillHex;
+    borderHexInput.value = msg.borderHex;
+    borderWidthInput.value = msg.borderWidth;
+    transparentInput.checked = msg.transparent;
+    lockSpacerInput.checked = msg.locked;
+  };
+
+  applyBtn.onclick = () => {
+    parent.postMessage(
+      {
+        pluginMessage: {
+          type: "create-or-resize-spacer",
+          width: Number(widthInput.value),
+          height: Number(heightInput.value),
+          ratio: Number(ratioInput.value),
+          lockRatio: lockRatioInput.checked,
+          transparent: transparentInput.checked,
+          fillHex: String(fillHexInput.value || ""),
+          borderHex: String(borderHexInput.value || ""),
+          borderWidth: Number(borderWidthInput.value),
+          lockSpacer: lockSpacerInput.checked
+        }
+      },
+      "*"
+    );
+  };
+	</script>
   </body>
 </html>
